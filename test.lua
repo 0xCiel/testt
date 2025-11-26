@@ -48,7 +48,6 @@ function HumanoidESP:Set(model)
         return false
     end
 
-    print("Creating ESP for:", model.Name)
 
     local espText = NewText(self.Color, self.fontSize)
 
@@ -132,7 +131,6 @@ function HumanoidESP:Set(model)
 
     if self.Enable then
         RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, UpdateESP)
-        print("Started render loop for:", model.Name, "with ID:", renderName)
     end
 
     model.AncestryChanged:Connect(function(_, parent)
@@ -165,7 +163,6 @@ function HumanoidESP:Remove(obj)
         end
 
         self.ActiveObjects[obj] = nil
-        print("Removed ESP from:", obj.Name)
     end
 end
 
