@@ -14,152 +14,148 @@ local function NewText(color, size)
     return text
 end
 
-local function CreateBaseESP(espType)
-    local BaseESP = {}
-    BaseESP.__index = BaseESP
+local BaseESP = {}
+BaseESP.__index = BaseESP
 
-    function BaseESP.new()
-        local self = setmetatable({}, BaseESP)
+function BaseESP.new(espType)
+    local self = setmetatable({}, BaseESP)
 
-        self.espType = espType or "Base"
-        self._highlight = false
-        self._highlightTransparency = 0
-        self._highlightOutlineTransparency = 0
-        self._fontSize = 14
-        self._color = Color3.new(1, 1, 1)
-        self._enable = false
-        self._espDistance = 1000
-        self._showDistance = true
+    self.espType = espType or "Base"
+    self._highlight = false
+    self._highlightTransparency = 0
+    self._highlightOutlineTransparency = 0
+    self._fontSize = 14
+    self._color = Color3.new(1, 1, 1)
+    self._enable = false
+    self._espDistance = 1000
+    self._showDistance = true
 
-        self.ActiveObjects = {}
+    self.ActiveObjects = {}
 
-        return self
-    end
-
-    function BaseESP:__index(key)
-        if key == "Highlight" then return self._highlight
-        elseif key == "HighlightTransparency" then return self._highlightTransparency
-        elseif key == "HighlightOutlineTransparency" then return self._highlightOutlineTransparency
-        elseif key == "fontSize" then return self._fontSize
-        elseif key == "Color" then return self._color
-        elseif key == "Enable" then return self._enable
-        elseif key == "espDistance" then return self._espDistance
-        elseif key == "ShowDistance" then return self._showDistance
-        else return BaseESP[key]
-        end
-    end
-
-    function BaseESP:__newindex(key, value)
-        if key == "Highlight" then
-            self._highlight = value
-            self:_updateAllHighlights()
-        elseif key == "HighlightTransparency" then
-            self._highlightTransparency = value
-            self:_updateAllHighlights()
-        elseif key == "HighlightOutlineTransparency" then
-            self._highlightOutlineTransparency = value
-            self:_updateAllHighlights()
-        elseif key == "fontSize" then
-            self._fontSize = value
-            self:_updateAllTexts()
-        elseif key == "Color" then
-            self._color = value
-            self:_updateAllTexts()
-            self:_updateAllHighlights()
-        elseif key == "Enable" then
-            self._enable = value
-            self:_updateEnableState()
-        elseif key == "espDistance" then
-            self._espDistance = value
-        elseif key == "ShowDistance" then
-            self._showDistance = value
-        else
-            rawset(self, key, value)
-        end
-    end
-
-    function BaseESP:_updateAllTexts()
-        for _, data in pairs(self.ActiveObjects) do
-            if data.espText then
-                data.espText.Size = self._fontSize
-                data.espText.Color = self._color
-            end
-        end
-    end
-
-    function BaseESP:_updateAllHighlights()
-        for _, data in pairs(self.ActiveObjects) do
-            if data.highlight then
-                data.highlight.FillColor = self._color
-                data.highlight.OutlineColor = self._color
-                data.highlight.FillTransparency = self._highlightTransparency
-                data.highlight.OutlineTransparency = self._highlightOutlineTransparency
-                data.highlight.Enabled = self._highlight and self._enable
-            end
-        end
-    end
-
-    function BaseESP:_updateEnableState()
-        for _, data in pairs(self.ActiveObjects) do
-            if data.espText then
-                data.espText.Visible = self._enable
-            end
-            if data.highlight then
-                data.highlight.Enabled = self._highlight and self._enable
-            end
-        end
-    end
-
-    function BaseESP:Remove(obj)
-        if self.ActiveObjects[obj] then
-            local data = self.ActiveObjects[obj]
-
-            if data.espText then
-                data.espText:Remove()
-            end
-
-            if data.highlight then
-                data.highlight:Destroy()
-            end
-
-            if data.renderName then
-                RunService:UnbindFromRenderStep(data.renderName)
-            end
-
-            self.ActiveObjects[obj] = nil
-        end
-    end
-
-    function BaseESP:ClearAll()
-        for obj, data in pairs(self.ActiveObjects) do
-            if data.espText then
-                data.espText:Remove()
-            end
-            if data.highlight then
-                data.highlight:Destroy()
-            end
-            if data.renderName then
-                RunService:UnbindFromRenderStep(data.renderName)
-            end
-        end
-        self.ActiveObjects = {}
-    end
-
-    return BaseESP
+    return self
 end
 
-local HumanoidESP = setmetatable({}, {__index = CreateBaseESP("Humanoid")})
+function BaseESP:__index(key)
+    if key == "Highlight" then return self._highlight
+    elseif key == "HighlightTransparency" then return self._highlightTransparency
+    elseif key == "HighlightOutlineTransparency" then return self._highlightOutlineTransparency
+    elseif key == "fontSize" then return self._fontSize
+    elseif key == "Color" then return self._color
+    elseif key == "Enable" then return self._enable
+    elseif key == "espDistance" then return self._espDistance
+    elseif key == "ShowDistance" then return self._showDistance
+    else return BaseESP[key]
+    end
+end
+
+function BaseESP:__newindex(key, value)
+    if key == "Highlight" then
+        self._highlight = value
+        self:_updateAllHighlights()
+    elseif key == "HighlightTransparency" then
+        self._highlightTransparency = value
+        self:_updateAllHighlights()
+    elseif key == "HighlightOutlineTransparency" then
+        self._highlightOutlineTransparency = value
+        self:_updateAllHighlights()
+    elseif key == "fontSize" then
+        self._fontSize = value
+        self:_updateAllTexts()
+    elseif key == "Color" then
+        self._color = value
+        self:_updateAllTexts()
+        self:_updateAllHighlights()
+    elseif key == "Enable" then
+        self._enable = value
+        self:_updateEnableState()
+    elseif key == "espDistance" then
+        self._espDistance = value
+    elseif key == "ShowDistance" then
+        self._showDistance = value
+    else
+        rawset(self, key, value)
+    end
+end
+
+function BaseESP:_updateAllTexts()
+    for _, data in pairs(self.ActiveObjects) do
+        if data.espText then
+            data.espText.Size = self._fontSize
+            data.espText.Color = self._color
+        end
+    end
+end
+
+function BaseESP:_updateAllHighlights()
+    for _, data in pairs(self.ActiveObjects) do
+        if data.highlight then
+            data.highlight.FillColor = self._color
+            data.highlight.OutlineColor = self._color
+            data.highlight.FillTransparency = self._highlightTransparency
+            data.highlight.OutlineTransparency = self._highlightOutlineTransparency
+            data.highlight.Enabled = self._highlight and self._enable
+        end
+    end
+end
+
+function BaseESP:_updateEnableState()
+    for _, data in pairs(self.ActiveObjects) do
+        if data.espText then
+            data.espText.Visible = self._enable
+        end
+        if data.highlight then
+            data.highlight.Enabled = self._highlight and self._enable
+        end
+    end
+end
+
+function BaseESP:Remove(obj)
+    if self.ActiveObjects[obj] then
+        local data = self.ActiveObjects[obj]
+
+        if data.espText then
+            data.espText:Remove()
+        end
+
+        if data.highlight then
+            data.highlight:Destroy()
+        end
+
+        if data.renderName then
+            RunService:UnbindFromRenderStep(data.renderName)
+        end
+
+        self.ActiveObjects[obj] = nil
+    end
+end
+
+function BaseESP:ClearAll()
+    for obj, data in pairs(self.ActiveObjects) do
+        if data.espText then
+            data.espText:Remove()
+        end
+        if data.highlight then
+            data.highlight:Destroy()
+        end
+        if data.renderName then
+            RunService:UnbindFromRenderStep(data.renderName)
+        end
+    end
+    self.ActiveObjects = {}
+end
+
+local HumanoidESP = {}
 HumanoidESP.__index = HumanoidESP
 
 function HumanoidESP.new()
-    local self = setmetatable(CreateBaseESP("Humanoid").new(), HumanoidESP)
+    local self = setmetatable(BaseESP.new("Humanoid"), HumanoidESP)
     self._showHealth = true
     return self
 end
 
 function HumanoidESP:__index(key)
     if key == "ShowHealth" then return self._showHealth
-    else return getmetatable(HumanoidESP).__index[key] or HumanoidESP[key]
+    else return getmetatable(self).__index(self, key)
     end
 end
 
@@ -167,7 +163,7 @@ function HumanoidESP:__newindex(key, value)
     if key == "ShowHealth" then
         self._showHealth = value
     else
-        getmetatable(HumanoidESP).__newindex(self, key, value)
+        getmetatable(self).__newindex(self, key, value)
     end
 end
 
@@ -273,11 +269,11 @@ function HumanoidESP:Set(model)
     return true
 end
 
-local PartESP = setmetatable({}, {__index = CreateBaseESP("Part")})
+local PartESP = {}
 PartESP.__index = PartESP
 
 function PartESP.new()
-    local self = setmetatable(CreateBaseESP("Part").new(), PartESP)
+    local self = setmetatable(BaseESP.new("Part"), PartESP)
     return self
 end
 
@@ -366,11 +362,11 @@ function PartESP:Set(part)
     return true
 end
 
-local PivotESP = setmetatable({}, {__index = CreateBaseESP("Pivot")})
+local PivotESP = {}
 PivotESP.__index = PivotESP
 
 function PivotESP.new()
-    local self = setmetatable(CreateBaseESP("Pivot").new(), PivotESP)
+    local self = setmetatable(BaseESP.new("Pivot"), PivotESP)
     return self
 end
 
