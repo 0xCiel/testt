@@ -68,8 +68,9 @@ function BaseESP:Remove(obj)
             data.highlight:Destroy()
         end
 
-        if data.renderName then
-            RunService:UnbindFromRenderStep(data.renderName)
+        if data.renderConnection then
+            data.renderConnection:Disconnect()
+            data.renderConnection = nil
         end
 
         self.ActiveObjects[obj] = nil
@@ -84,8 +85,8 @@ function BaseESP:ClearAll()
         if data.highlight then
             data.highlight:Destroy()
         end
-        if data.renderName then
-            RunService:UnbindFromRenderStep(data.renderName)
+        if data.renderConnection then
+            data.renderConnection:Disconnect()
         end
     end
     self.ActiveObjects = {}
@@ -118,7 +119,10 @@ function BaseESP:SetColor(value)
 end
 
 function BaseESP:SetEnable(value)
+    if self.Enable == value then return end
+
     self.Enable = value
+
     if value then
         self:StartAllRenderLoops()
     else
@@ -137,20 +141,29 @@ end
 
 function BaseESP:StartAllRenderLoops()
     for obj, data in pairs(self.ActiveObjects) do
-        if data.updateFunction and not data.renderRunning then
-            data.renderRunning = true
-            RunService:BindToRenderStep(data.renderName, Enum.RenderPriority.Camera.Value + 1, data.updateFunction)
+        if not data.renderConnection then
+            self:CreateRenderLoop(obj, data)
         end
     end
 end
 
 function BaseESP:StopAllRenderLoops()
-    for obj, data in pairs(self.ActiveObjects) do
-        if data.renderName and data.renderRunning then
-            RunService:UnbindFromRenderStep(data.renderName)
-            data.renderRunning = false
+    for _, data in pairs(self.ActiveObjects) do
+        if data.renderConnection then
+            data.renderConnection:Disconnect()
+            data.renderConnection = nil
+        end
+        if data.espText then
+            data.espText.Visible = false
+        end
+        if data.highlight then
+            data.highlight.Enabled = false
         end
     end
+end
+
+function BaseESP:CreateRenderLoop(obj, data)
+
 end
 
 local HumanoidESP = setmetatable({}, {__index = BaseESP})
@@ -166,6 +179,68 @@ function HumanoidESP:SetShowHealth(value)
     self.ShowHealth = value
 end
 
+function HumanoidESP:CreateRenderLoop(model, data)
+    if data.renderConnection then
+        data.renderConnection:Disconnect()
+    end
+
+    data.renderConnection = RunService.RenderStepped:Connect(function()
+        if not self.Enable or not model or not model.Parent then
+            self:Remove(model)
+            return
+        end
+
+        local player = Players.LocalPlayer
+        local char = player.Character
+        if not char then 
+            data.espText.Visible = false
+            if data.highlight then data.highlight.Enabled = false end
+            return 
+        end
+
+        local playerRoot = char:FindFirstChild("HumanoidRootPart")
+        if not playerRoot then 
+            data.espText.Visible = false
+            if data.highlight then data.highlight.Enabled = false end
+            return 
+        end
+
+        if not data.humanoid or not data.humanoid.Parent or not data.rootPart or not data.rootPart.Parent then
+            self:Remove(model)
+            return
+        end
+
+        local distance = (data.rootPart.Position - playerRoot.Position).Magnitude
+        local screenPos, onScreen = Camera:WorldToViewportPoint(data.rootPart.Position)
+
+        if distance <= self.espDistance and onScreen then
+            local displayName = model:GetAttribute("CharacterName") or model.Name
+
+            local text = displayName
+            if self.ShowDistance then
+                text = text .. string.format(" [%.1fm]", distance)
+            end
+            if self.ShowHealth and data.humanoid and data.humanoid.MaxHealth > 0 then
+                local healthPercent = math.floor((data.humanoid.Health / data.humanoid.MaxHealth) * 100)
+                text = text .. string.format(" [HP: %d%%]", healthPercent)
+            end
+
+            data.espText.Text = text
+            data.espText.Position = Vector2.new(screenPos.X, screenPos.Y)
+            data.espText.Visible = true
+
+            if data.highlight then
+                data.highlight.Enabled = self.Highlight
+            end
+        else
+            data.espText.Visible = false
+            if data.highlight then
+                data.highlight.Enabled = false
+            end
+        end
+    end)
+end
+
 function HumanoidESP:Set(model)
     if not model or not model:IsA("Model") or self.ActiveObjects[model] then
         return false
@@ -179,7 +254,7 @@ function HumanoidESP:Set(model)
     end
 
     local espText = NewText(self.Color, self.fontSize)
-    espText.Visible = self.Enable
+    espText.Visible = false
 
     local highlight = nil
     if self.Highlight then
@@ -189,86 +264,45 @@ function HumanoidESP:Set(model)
         highlight.OutlineColor = self.Color
         highlight.FillTransparency = self.HighlightTransparency
         highlight.OutlineTransparency = self.HighlightOutlineTransparency
-        highlight.Enabled = self.Highlight and self.Enable
+        highlight.Enabled = false
     end
 
-    local renderName = "HumanoidESP_" .. tostring(model):gsub("%W", "_")
-
-    local function UpdateESP()
-        if not self.Enable or not model or not model.Parent then
-            self:Remove(model)
-            return
-        end
-
-        local player = Players.LocalPlayer
-        local char = player.Character
-        if not char then 
-            espText.Visible = false
-            if highlight then highlight.Enabled = false end
-            return 
-        end
-
-        local playerRoot = char:FindFirstChild("HumanoidRootPart")
-        if not playerRoot then 
-            espText.Visible = false
-            if highlight then highlight.Enabled = false end
-            return 
-        end
-
-        local distance = (rootPart.Position - playerRoot.Position).Magnitude
-        local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-
-        if distance <= self.espDistance and onScreen then
-            local displayName = model:GetAttribute("CharacterName") or model.Name
-
-            local text = displayName
-            if self.ShowDistance then
-                text = text .. string.format(" [%.1fm]", distance)
-            end
-            if self.ShowHealth and humanoid and humanoid.MaxHealth > 0 then
-                local healthPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
-                text = text .. string.format(" [HP: %d%%]", healthPercent)
-            end
-
-            espText.Text = text
-            espText.Position = Vector2.new(screenPos.X, screenPos.Y)
-            espText.Visible = true
-
-            if highlight then
-                highlight.Enabled = self.Highlight
-            end
-        else
-            espText.Visible = false
-            if highlight then
-                highlight.Enabled = false
-            end
-        end
-    end
-
-    self.ActiveObjects[model] = {
+    local data = {
         espText = espText,
         highlight = highlight,
         humanoid = humanoid,
         rootPart = rootPart,
-        modelName = model.Name,
-        renderName = renderName,
-        updateFunction = UpdateESP,
-        renderRunning = false
+        modelName = model.Name
     }
 
+    self.ActiveObjects[model] = data
+
     if self.Enable then
-        self.ActiveObjects[model].renderRunning = true
-        RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, UpdateESP)
+        self:CreateRenderLoop(model, data)
+    end
+
+    local function cleanup()
+        self:Remove(model)
     end
 
     model.AncestryChanged:Connect(function(_, parent)
         if not parent then
-            self:Remove(model)
+            cleanup()
         end
     end)
 
-    humanoid.Died:Connect(function()
-        self:Remove(model)
+    humanoid.Died:Connect(cleanup)
+
+    humanoid.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            cleanup()
+        end
+    end)
+
+    rootPart.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            cleanup()
+        end
     end)
 
     return true
@@ -282,28 +316,12 @@ function PartESP.new()
     return self
 end
 
-function PartESP:Set(part)
-    if not part or not part:IsA("BasePart") or self.ActiveObjects[part] then
-        return false
+function PartESP:CreateRenderLoop(part, data)
+    if data.renderConnection then
+        data.renderConnection:Disconnect()
     end
 
-    local espText = NewText(self.Color, self.fontSize)
-    espText.Visible = self.Enable
-
-    local highlight = nil
-    if self.Highlight then
-        highlight = Instance.new("Highlight")
-        highlight.Parent = part
-        highlight.FillColor = self.Color
-        highlight.OutlineColor = self.Color
-        highlight.FillTransparency = self.HighlightTransparency
-        highlight.OutlineTransparency = self.HighlightOutlineTransparency
-        highlight.Enabled = self.Highlight and self.Enable
-    end
-
-    local renderName = "PartESP_" .. tostring(part):gsub("%W", "_")
-
-    local function UpdateESP()
+    data.renderConnection = RunService.RenderStepped:Connect(function()
         if not self.Enable or not part or not part.Parent then
             self:Remove(part)
             return
@@ -312,15 +330,15 @@ function PartESP:Set(part)
         local player = Players.LocalPlayer
         local char = player.Character
         if not char then 
-            espText.Visible = false
-            if highlight then highlight.Enabled = false end
+            data.espText.Visible = false
+            if data.highlight then data.highlight.Enabled = false end
             return 
         end
 
         local playerRoot = char:FindFirstChild("HumanoidRootPart")
         if not playerRoot then 
-            espText.Visible = false
-            if highlight then highlight.Enabled = false end
+            data.espText.Visible = false
+            if data.highlight then data.highlight.Enabled = false end
             return 
         end
 
@@ -335,33 +353,51 @@ function PartESP:Set(part)
                 text = text .. string.format(" [%.1fm]", distance)
             end
 
-            espText.Text = text
-            espText.Position = Vector2.new(screenPos.X, screenPos.Y)
-            espText.Visible = true
+            data.espText.Text = text
+            data.espText.Position = Vector2.new(screenPos.X, screenPos.Y)
+            data.espText.Visible = true
 
-            if highlight then
-                highlight.Enabled = self.Highlight
+            if data.highlight then
+                data.highlight.Enabled = self.Highlight
             end
         else
-            espText.Visible = false
-            if highlight then
-                highlight.Enabled = false
+            data.espText.Visible = false
+            if data.highlight then
+                data.highlight.Enabled = false
             end
         end
+    end)
+end
+
+function PartESP:Set(part)
+    if not part or not part:IsA("BasePart") or self.ActiveObjects[part] then
+        return false
     end
 
-    self.ActiveObjects[part] = {
+    local espText = NewText(self.Color, self.fontSize)
+    espText.Visible = false
+
+    local highlight = nil
+    if self.Highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Parent = part
+        highlight.FillColor = self.Color
+        highlight.OutlineColor = self.Color
+        highlight.FillTransparency = self.HighlightTransparency
+        highlight.OutlineTransparency = self.HighlightOutlineTransparency
+        highlight.Enabled = false
+    end
+
+    local data = {
         espText = espText,
         highlight = highlight,
-        part = part,
-        renderName = renderName,
-        updateFunction = UpdateESP,
-        renderRunning = false
+        part = part
     }
 
+    self.ActiveObjects[part] = data
+
     if self.Enable then
-        self.ActiveObjects[part].renderRunning = true
-        RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, UpdateESP)
+        self:CreateRenderLoop(part, data)
     end
 
     part.AncestryChanged:Connect(function(_, parent)
@@ -381,28 +417,12 @@ function PivotESP.new()
     return self
 end
 
-function PivotESP:Set(model)
-    if not model or not model:IsA("Model") or self.ActiveObjects[model] then
-        return false
+function PivotESP:CreateRenderLoop(model, data)
+    if data.renderConnection then
+        data.renderConnection:Disconnect()
     end
 
-    local espText = NewText(self.Color, self.fontSize)
-    espText.Visible = self.Enable
-
-    local highlight = nil
-    if self.Highlight then
-        highlight = Instance.new("Highlight")
-        highlight.Parent = model
-        highlight.FillColor = self.Color
-        highlight.OutlineColor = self.Color
-        highlight.FillTransparency = self.HighlightTransparency
-        highlight.OutlineTransparency = self.HighlightOutlineTransparency
-        highlight.Enabled = self.Highlight and self.Enable
-    end
-
-    local renderName = "PivotESP_" .. tostring(model):gsub("%W", "_")
-
-    local function UpdateESP()
+    data.renderConnection = RunService.RenderStepped:Connect(function()
         if not self.Enable or not model or not model.Parent then
             self:Remove(model)
             return
@@ -411,19 +431,27 @@ function PivotESP:Set(model)
         local player = Players.LocalPlayer
         local char = player.Character
         if not char then 
-            espText.Visible = false
-            if highlight then highlight.Enabled = false end
+            data.espText.Visible = false
+            if data.highlight then data.highlight.Enabled = false end
             return 
         end
 
         local playerRoot = char:FindFirstChild("HumanoidRootPart")
         if not playerRoot then 
-            espText.Visible = false
-            if highlight then highlight.Enabled = false end
+            data.espText.Visible = false
+            if data.highlight then data.highlight.Enabled = false end
             return 
         end
 
-        local pivot = model:GetPivot()
+        local success, pivot = pcall(function()
+            return model:GetPivot()
+        end)
+
+        if not success then
+            self:Remove(model)
+            return
+        end
+
         local distance = (pivot.Position - playerRoot.Position).Magnitude
         local screenPos, onScreen = Camera:WorldToViewportPoint(pivot.Position)
 
@@ -435,33 +463,51 @@ function PivotESP:Set(model)
                 text = text .. string.format(" [%.1fm]", distance)
             end
 
-            espText.Text = text
-            espText.Position = Vector2.new(screenPos.X, screenPos.Y)
-            espText.Visible = true
+            data.espText.Text = text
+            data.espText.Position = Vector2.new(screenPos.X, screenPos.Y)
+            data.espText.Visible = true
 
-            if highlight then
-                highlight.Enabled = self.Highlight
+            if data.highlight then
+                data.highlight.Enabled = self.Highlight
             end
         else
-            espText.Visible = false
-            if highlight then
-                highlight.Enabled = false
+            data.espText.Visible = false
+            if data.highlight then
+                data.highlight.Enabled = false
             end
         end
+    end)
+end
+
+function PivotESP:Set(model)
+    if not model or not model:IsA("Model") or self.ActiveObjects[model] then
+        return false
     end
 
-    self.ActiveObjects[model] = {
+    local espText = NewText(self.Color, self.fontSize)
+    espText.Visible = false
+
+    local highlight = nil
+    if self.Highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Parent = model
+        highlight.FillColor = self.Color
+        highlight.OutlineColor = self.Color
+        highlight.FillTransparency = self.HighlightTransparency
+        highlight.OutlineTransparency = self.HighlightOutlineTransparency
+        highlight.Enabled = false
+    end
+
+    local data = {
         espText = espText,
         highlight = highlight,
-        model = model,
-        renderName = renderName,
-        updateFunction = UpdateESP,
-        renderRunning = false
+        model = model
     }
 
+    self.ActiveObjects[model] = data
+
     if self.Enable then
-        self.ActiveObjects[model].renderRunning = true
-        RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, UpdateESP)
+        self:CreateRenderLoop(model, data)
     end
 
     model.AncestryChanged:Connect(function(_, parent)
