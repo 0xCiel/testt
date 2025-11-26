@@ -214,7 +214,7 @@ function HumanoidESP:CreateRenderLoop(model, data)
         local screenPos, onScreen = Camera:WorldToViewportPoint(data.rootPart.Position)
 
         if distance <= self.espDistance and onScreen then
-            local displayName = model:GetAttribute("CharacterName") or model.Name
+            local displayName = model.Name
 
             local text = displayName
             if self.ShowDistance then
