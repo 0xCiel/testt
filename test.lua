@@ -94,8 +94,23 @@ end
 
 function BaseESP:SetHighlight(value)
     self.Highlight = value
-    self:UpdateAllHighlights()
+    for obj, data in pairs(self.ActiveObjects) do
+        if value and not data.highlight then
+            local h = Instance.new("Highlight")
+            h.Parent = obj
+            h.FillColor = self.Color
+            h.OutlineColor = self.Color
+            h.FillTransparency = self.HighlightTransparency
+            h.OutlineTransparency = self.HighlightOutlineTransparency
+            h.Enabled = self.Enable
+            data.highlight = h
+        elseif not value and data.highlight then
+            data.highlight:Destroy()
+            data.highlight = nil
+        end
+    end
 end
+
 
 function BaseESP:SetHighlightTransparency(value)
     self.HighlightTransparency = value
