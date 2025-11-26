@@ -4,6 +4,16 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local Camera = workspace.CurrentCamera
 
+local function NewText(color, size)
+    local text = Drawing.new("Text")
+    text.Visible = false
+    text.Center = true
+    text.Outline = true
+    text.Color = color
+    text.Size = size or 14
+    return text
+end
+
 local BaseESP = {}
 BaseESP.__index = BaseESP
 
@@ -100,13 +110,33 @@ function BaseESP:_updateAllHighlights()
     end
 end
 
+function BaseESP:_startRenderLoop(obj, updateFunction)
+    local renderName = "UpdateESP_" .. self.espType .. "_" .. tostring(obj):gsub("%W", "_")
+
+    if self.RenderConnections[renderName] then
+        RunService:UnbindFromRenderStep(renderName)
+    end
+
+    if self._enable then
+        self.RenderConnections[renderName] = true
+        RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, updateFunction)
+    end
+end
+
 function BaseESP:_updateEnableState()
+
     for obj, data in pairs(self.ActiveObjects) do
         if data.espText then
             data.espText.Visible = self._enable
         end
         if data.highlight then
             data.highlight.Enabled = self._highlight and self._enable
+        end
+    end
+
+    for obj, data in pairs(self.ActiveObjects) do
+        if data.updateFunction then
+            self:_startRenderLoop(obj, data.updateFunction)
         end
     end
 
@@ -170,12 +200,7 @@ function HumanoidESP:Set(model)
         return false
     end
 
-    local espText = Drawing.new("Text")
-    espText.Visible = false
-    espText.Size = self._fontSize
-    espText.Color = self._color
-    espText.Center = true
-    espText.Outline = true
+    local espText = NewText(self._color, self._fontSize)
 
     local highlight = nil
     if self._highlight then
@@ -187,15 +212,6 @@ function HumanoidESP:Set(model)
         highlight.OutlineTransparency = self._highlightOutlineTransparency
         highlight.Enabled = self._highlight and self._enable
     end
-
-    self.ActiveObjects[model] = {
-        espText = espText,
-        highlight = highlight,
-        humanoid = humanoid,
-        rootPart = rootPart
-    }
-
-    local renderName = "UpdateESP_" .. self.espType .. "_" .. tostring(model):gsub("%W", "_")
 
     local function UpdateESP()
         if not self._enable or not model or not model.Parent then
@@ -230,7 +246,7 @@ function HumanoidESP:Set(model)
             espText.Visible = true
 
             if highlight then
-                highlight.Enabled = self._highlight
+                highlight.Enabled = self._highlight and self._enable
             end
         else
             espText.Visible = false
@@ -240,10 +256,15 @@ function HumanoidESP:Set(model)
         end
     end
 
-    if self._enable then
-        self.RenderConnections[renderName] = true
-        RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, UpdateESP)
-    end
+    self.ActiveObjects[model] = {
+        espText = espText,
+        highlight = highlight,
+        humanoid = humanoid,
+        rootPart = rootPart,
+        updateFunction = UpdateESP
+    }
+
+    self:_startRenderLoop(model, UpdateESP)
 
     model.AncestryChanged:Connect(function(_, parent)
         if not parent then
@@ -272,12 +293,7 @@ function PartESP:Set(part)
         return false
     end
 
-    local espText = Drawing.new("Text")
-    espText.Visible = false
-    espText.Size = self._fontSize
-    espText.Color = self._color
-    espText.Center = true
-    espText.Outline = true
+    local espText = NewText(self._color, self._fontSize)
 
     local highlight = nil
     if self._highlight then
@@ -289,14 +305,6 @@ function PartESP:Set(part)
         highlight.OutlineTransparency = self._highlightOutlineTransparency
         highlight.Enabled = self._highlight and self._enable
     end
-
-    self.ActiveObjects[part] = {
-        espText = espText,
-        highlight = highlight,
-        part = part
-    }
-
-    local renderName = "UpdateESP_" .. self.espType .. "_" .. tostring(part):gsub("%W", "_")
 
     local function UpdateESP()
         if not self._enable or not part or not part.Parent then
@@ -327,7 +335,7 @@ function PartESP:Set(part)
             espText.Visible = true
 
             if highlight then
-                highlight.Enabled = self._highlight
+                highlight.Enabled = self._highlight and self._enable
             end
         else
             espText.Visible = false
@@ -337,10 +345,14 @@ function PartESP:Set(part)
         end
     end
 
-    if self._enable then
-        self.RenderConnections[renderName] = true
-        RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, UpdateESP)
-    end
+    self.ActiveObjects[part] = {
+        espText = espText,
+        highlight = highlight,
+        part = part,
+        updateFunction = UpdateESP
+    }
+
+    self:_startRenderLoop(part, UpdateESP)
 
     part.AncestryChanged:Connect(function(_, parent)
         if not parent then
@@ -365,12 +377,7 @@ function PivotESP:Set(model)
         return false
     end
 
-    local espText = Drawing.new("Text")
-    espText.Visible = false
-    espText.Size = self._fontSize
-    espText.Color = self._color
-    espText.Center = true
-    espText.Outline = true
+    local espText = NewText(self._color, self._fontSize)
 
     local highlight = nil
     if self._highlight then
@@ -382,14 +389,6 @@ function PivotESP:Set(model)
         highlight.OutlineTransparency = self._highlightOutlineTransparency
         highlight.Enabled = self._highlight and self._enable
     end
-
-    self.ActiveObjects[model] = {
-        espText = espText,
-        highlight = highlight,
-        model = model
-    }
-
-    local renderName = "UpdateESP_" .. self.espType .. "_" .. tostring(model):gsub("%W", "_")
 
     local function UpdateESP()
         if not self._enable or not model or not model.Parent then
@@ -421,7 +420,7 @@ function PivotESP:Set(model)
             espText.Visible = true
 
             if highlight then
-                highlight.Enabled = self._highlight
+                highlight.Enabled = self._highlight and self._enable
             end
         else
             espText.Visible = false
@@ -431,10 +430,14 @@ function PivotESP:Set(model)
         end
     end
 
-    if self._enable then
-        self.RenderConnections[renderName] = true
-        RunService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, UpdateESP)
-    end
+    self.ActiveObjects[model] = {
+        espText = espText,
+        highlight = highlight,
+        model = model,
+        updateFunction = UpdateESP
+    }
+
+    self:_startRenderLoop(model, UpdateESP)
 
     model.AncestryChanged:Connect(function(_, parent)
         if not parent then
