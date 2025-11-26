@@ -21,90 +21,48 @@ function BaseESP.new(espType)
     local self = setmetatable({}, BaseESP)
 
     self.espType = espType or "Base"
-    self._highlight = false
-    self._highlightTransparency = 0
-    self._highlightOutlineTransparency = 0
-    self._fontSize = 14
-    self._color = Color3.new(1, 1, 1)
-    self._enable = false
-    self._espDistance = 1000
-    self._showDistance = true
+    self.Highlight = false
+    self.HighlightTransparency = 0
+    self.HighlightOutlineTransparency = 0
+    self.fontSize = 14
+    self.Color = Color3.new(1, 1, 1)
+    self.Enable = false
+    self.espDistance = 1000
+    self.ShowDistance = true
 
     self.ActiveObjects = {}
 
     return self
 end
 
-function BaseESP:__index(key)
-    if key == "Highlight" then return self._highlight
-    elseif key == "HighlightTransparency" then return self._highlightTransparency
-    elseif key == "HighlightOutlineTransparency" then return self._highlightOutlineTransparency
-    elseif key == "fontSize" then return self._fontSize
-    elseif key == "Color" then return self._color
-    elseif key == "Enable" then return self._enable
-    elseif key == "espDistance" then return self._espDistance
-    elseif key == "ShowDistance" then return self._showDistance
-    else return BaseESP[key]
-    end
-end
-
-function BaseESP:__newindex(key, value)
-    if key == "Highlight" then
-        self._highlight = value
-        self:_updateAllHighlights()
-    elseif key == "HighlightTransparency" then
-        self._highlightTransparency = value
-        self:_updateAllHighlights()
-    elseif key == "HighlightOutlineTransparency" then
-        self._highlightOutlineTransparency = value
-        self:_updateAllHighlights()
-    elseif key == "fontSize" then
-        self._fontSize = value
-        self:_updateAllTexts()
-    elseif key == "Color" then
-        self._color = value
-        self:_updateAllTexts()
-        self:_updateAllHighlights()
-    elseif key == "Enable" then
-        self._enable = value
-        self:_updateEnableState()
-    elseif key == "espDistance" then
-        self._espDistance = value
-    elseif key == "ShowDistance" then
-        self._showDistance = value
-    else
-        rawset(self, key, value)
-    end
-end
-
-function BaseESP:_updateAllTexts()
+function BaseESP:UpdateAllTexts()
     for _, data in pairs(self.ActiveObjects) do
         if data.espText then
-            data.espText.Size = self._fontSize
-            data.espText.Color = self._color
+            data.espText.Size = self.fontSize
+            data.espText.Color = self.Color
         end
     end
 end
 
-function BaseESP:_updateAllHighlights()
+function BaseESP:UpdateAllHighlights()
     for _, data in pairs(self.ActiveObjects) do
         if data.highlight then
-            data.highlight.FillColor = self._color
-            data.highlight.OutlineColor = self._color
-            data.highlight.FillTransparency = self._highlightTransparency
-            data.highlight.OutlineTransparency = self._highlightOutlineTransparency
-            data.highlight.Enabled = self._highlight and self._enable
+            data.highlight.FillColor = self.Color
+            data.highlight.OutlineColor = self.Color
+            data.highlight.FillTransparency = self.HighlightTransparency
+            data.highlight.OutlineTransparency = self.HighlightOutlineTransparency
+            data.highlight.Enabled = self.Highlight and self.Enable
         end
     end
 end
 
-function BaseESP:_updateEnableState()
+function BaseESP:UpdateEnableState()
     for _, data in pairs(self.ActiveObjects) do
         if data.espText then
-            data.espText.Visible = self._enable
+            data.espText.Visible = self.Enable
         end
         if data.highlight then
-            data.highlight.Enabled = self._highlight and self._enable
+            data.highlight.Enabled = self.Highlight and self.Enable
         end
     end
 end
@@ -144,27 +102,48 @@ function BaseESP:ClearAll()
     self.ActiveObjects = {}
 end
 
-local HumanoidESP = {}
+function BaseESP:SetHighlight(value)
+    self.Highlight = value
+    self:UpdateAllHighlights()
+end
+
+function BaseESP:SetHighlightTransparency(value)
+    self.HighlightTransparency = value
+    self:UpdateAllHighlights()
+end
+
+function BaseESP:SetHighlightOutlineTransparency(value)
+    self.HighlightOutlineTransparency = value
+    self:UpdateAllHighlights()
+end
+
+function BaseESP:SetFontSize(value)
+    self.fontSize = value
+    self:UpdateAllTexts()
+end
+
+function BaseESP:SetColor(value)
+    self.Color = value
+    self:UpdateAllTexts()
+    self:UpdateAllHighlights()
+end
+
+function BaseESP:SetEnable(value)
+    self.Enable = value
+    self:UpdateEnableState()
+end
+
+local HumanoidESP = setmetatable({}, {__index = BaseESP})
 HumanoidESP.__index = HumanoidESP
 
 function HumanoidESP.new()
     local self = setmetatable(BaseESP.new("Humanoid"), HumanoidESP)
-    self._showHealth = true
+    self.ShowHealth = true
     return self
 end
 
-function HumanoidESP:__index(key)
-    if key == "ShowHealth" then return self._showHealth
-    else return getmetatable(self).__index(self, key)
-    end
-end
-
-function HumanoidESP:__newindex(key, value)
-    if key == "ShowHealth" then
-        self._showHealth = value
-    else
-        getmetatable(self).__newindex(self, key, value)
-    end
+function HumanoidESP:SetShowHealth(value)
+    self.ShowHealth = value
 end
 
 function HumanoidESP:Set(model)
@@ -179,18 +158,18 @@ function HumanoidESP:Set(model)
         return false
     end
 
-    local espText = NewText(self._color, self._fontSize)
-    espText.Visible = self._enable
+    local espText = NewText(self.Color, self.fontSize)
+    espText.Visible = self.Enable
 
     local highlight = nil
-    if self._highlight then
+    if self.Highlight then
         highlight = Instance.new("Highlight")
         highlight.Parent = model
-        highlight.FillColor = self._color
-        highlight.OutlineColor = self._color
-        highlight.FillTransparency = self._highlightTransparency
-        highlight.OutlineTransparency = self._highlightOutlineTransparency
-        highlight.Enabled = self._highlight and self._enable
+        highlight.FillColor = self.Color
+        highlight.OutlineColor = self.Color
+        highlight.FillTransparency = self.HighlightTransparency
+        highlight.OutlineTransparency = self.HighlightOutlineTransparency
+        highlight.Enabled = self.Highlight and self.Enable
     end
 
     self.ActiveObjects[model] = {
@@ -202,7 +181,7 @@ function HumanoidESP:Set(model)
     }
 
     local function UpdateESP()
-        if not self._enable or not model or not model.Parent then
+        if not self.Enable or not model or not model.Parent then
             self:Remove(model)
             return
         end
@@ -225,14 +204,14 @@ function HumanoidESP:Set(model)
         local distance = (rootPart.Position - playerRoot.Position).Magnitude
         local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
 
-        if distance <= self._espDistance and onScreen then
+        if distance <= self.espDistance and onScreen then
             local displayName = model:GetAttribute("CharacterName") or model.Name
 
             local text = displayName
-            if self._showDistance then
+            if self.ShowDistance then
                 text = text .. string.format(" [%.1fm]", distance)
             end
-            if self._showHealth and humanoid and humanoid.MaxHealth > 0 then
+            if self.ShowHealth and humanoid and humanoid.MaxHealth > 0 then
                 local healthPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
                 text = text .. string.format(" [HP: %d%%]", healthPercent)
             end
@@ -242,7 +221,7 @@ function HumanoidESP:Set(model)
             espText.Visible = true
 
             if highlight then
-                highlight.Enabled = self._highlight
+                highlight.Enabled = self.Highlight
             end
         else
             espText.Visible = false
@@ -269,7 +248,7 @@ function HumanoidESP:Set(model)
     return true
 end
 
-local PartESP = {}
+local PartESP = setmetatable({}, {__index = BaseESP})
 PartESP.__index = PartESP
 
 function PartESP.new()
@@ -282,18 +261,18 @@ function PartESP:Set(part)
         return false
     end
 
-    local espText = NewText(self._color, self._fontSize)
-    espText.Visible = self._enable
+    local espText = NewText(self.Color, self.fontSize)
+    espText.Visible = self.Enable
 
     local highlight = nil
-    if self._highlight then
+    if self.Highlight then
         highlight = Instance.new("Highlight")
         highlight.Parent = part
-        highlight.FillColor = self._color
-        highlight.OutlineColor = self._color
-        highlight.FillTransparency = self._highlightTransparency
-        highlight.OutlineTransparency = self._highlightOutlineTransparency
-        highlight.Enabled = self._highlight and self._enable
+        highlight.FillColor = self.Color
+        highlight.OutlineColor = self.Color
+        highlight.FillTransparency = self.HighlightTransparency
+        highlight.OutlineTransparency = self.HighlightOutlineTransparency
+        highlight.Enabled = self.Highlight and self.Enable
     end
 
     self.ActiveObjects[part] = {
@@ -303,7 +282,7 @@ function PartESP:Set(part)
     }
 
     local function UpdateESP()
-        if not self._enable or not part or not part.Parent then
+        if not self.Enable or not part or not part.Parent then
             self:Remove(part)
             return
         end
@@ -326,11 +305,11 @@ function PartESP:Set(part)
         local distance = (part.Position - playerRoot.Position).Magnitude
         local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
 
-        if distance <= self._espDistance and onScreen then
+        if distance <= self.espDistance and onScreen then
             local displayName = part.Name
 
             local text = displayName
-            if self._showDistance then
+            if self.ShowDistance then
                 text = text .. string.format(" [%.1fm]", distance)
             end
 
@@ -339,7 +318,7 @@ function PartESP:Set(part)
             espText.Visible = true
 
             if highlight then
-                highlight.Enabled = self._highlight
+                highlight.Enabled = self.Highlight
             end
         else
             espText.Visible = false
@@ -362,7 +341,7 @@ function PartESP:Set(part)
     return true
 end
 
-local PivotESP = {}
+local PivotESP = setmetatable({}, {__index = BaseESP})
 PivotESP.__index = PivotESP
 
 function PivotESP.new()
@@ -375,18 +354,18 @@ function PivotESP:Set(model)
         return false
     end
 
-    local espText = NewText(self._color, self._fontSize)
-    espText.Visible = self._enable
+    local espText = NewText(self.Color, self.fontSize)
+    espText.Visible = self.Enable
 
     local highlight = nil
-    if self._highlight then
+    if self.Highlight then
         highlight = Instance.new("Highlight")
         highlight.Parent = model
-        highlight.FillColor = self._color
-        highlight.OutlineColor = self._color
-        highlight.FillTransparency = self._highlightTransparency
-        highlight.OutlineTransparency = self._highlightOutlineTransparency
-        highlight.Enabled = self._highlight and self._enable
+        highlight.FillColor = self.Color
+        highlight.OutlineColor = self.Color
+        highlight.FillTransparency = self.HighlightTransparency
+        highlight.OutlineTransparency = self.HighlightOutlineTransparency
+        highlight.Enabled = self.Highlight and self.Enable
     end
 
     self.ActiveObjects[model] = {
@@ -396,7 +375,7 @@ function PivotESP:Set(model)
     }
 
     local function UpdateESP()
-        if not self._enable or not model or not model.Parent then
+        if not self.Enable or not model or not model.Parent then
             self:Remove(model)
             return
         end
@@ -420,11 +399,11 @@ function PivotESP:Set(model)
         local distance = (pivot.Position - playerRoot.Position).Magnitude
         local screenPos, onScreen = Camera:WorldToViewportPoint(pivot.Position)
 
-        if distance <= self._espDistance and onScreen then
+        if distance <= self.espDistance and onScreen then
             local displayName = model.Name
 
             local text = displayName
-            if self._showDistance then
+            if self.ShowDistance then
                 text = text .. string.format(" [%.1fm]", distance)
             end
 
@@ -433,7 +412,7 @@ function PivotESP:Set(model)
             espText.Visible = true
 
             if highlight then
-                highlight.Enabled = self._highlight
+                highlight.Enabled = self.Highlight
             end
         else
             espText.Visible = false
